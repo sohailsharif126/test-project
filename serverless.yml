@@ -1,0 +1,102 @@
+service: appsync-crud-lambda
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: ${opt:stage, 'dev'}
+  region: us-east-1
+  environment:
+    ITEMS_TABLE: ${self:service}-${self:provider.stage}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:PutItem
+        - dynamodb:GetItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:Scan
+      Resource: !GetAtt ItemsDynamoDBTable.Arn
+
+functions:
+  createItem:
+    handler: src/createItem.handler
+  getItem:
+    handler: src/getItem.handler
+  listItems:
+    handler: src/listItems.handler
+  updateItem:
+    handler: src/updateItem.handler
+  deleteItem:
+    handler: src/deleteItem.handler
+
+custom:
+  appsync:
+    name: ${self:service}-api-${self:provider.stage}
+    authenticationType: API_KEY
+    schema: schema.graphql
+    dataSources:
+      - type: AWS_LAMBDA
+        name: createItemLambda
+        config:
+          lambdaFunctionArn: !GetAtt CreateItemLambdaFunction.Arn
+      - type: AWS_LAMBDA
+        name: getItemLambda
+        config:
+          lambdaFunctionArn: !GetAtt GetItemLambdaFunction.Arn
+      - type: AWS_LAMBDA
+        name: listItemsLambda
+        config:
+          lambdaFunctionArn: !GetAtt ListItemsLambdaFunction.Arn
+      - type: AWS_LAMBDA
+        name: updateItemLambda
+        config:
+          lambdaFunctionArn: !GetAtt UpdateItemLambdaFunction.Arn
+      - type: AWS_LAMBDA
+        name: deleteItemLambda
+        config:
+          lambdaFunctionArn: !GetAtt DeleteItemLambdaFunction.Arn
+    mappingTemplates:
+      - dataSource: createItemLambda
+        type: Mutation
+        field: createItem
+        request: false
+        response: false
+      - dataSource: getItemLambda
+        type: Query
+        field: getItem
+        request: false
+        response: false
+      - dataSource: listItemsLambda
+        type: Query
+        field: listItems
+        request: false
+        response: false
+      - dataSource: updateItemLambda
+        type: Mutation
+        field: updateItem
+        request: false
+        response: false
+      - dataSource: deleteItemLambda
+        type: Mutation
+        field: deleteItem
+        request: false
+        response: false
+
+resources:
+  Resources:
+    ItemsDynamoDBTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.ITEMS_TABLE}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+
+plugins:
+  - serverless-appsync-plugin
+  - serverless-deployment-bucket
