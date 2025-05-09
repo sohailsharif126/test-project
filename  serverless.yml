@@ -1,0 +1,48 @@
+service: click-tracker
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: us-east-1
+  stage: prod
+  environment:
+    CLICKS_TABLE: ClickEvents-${self:provider.stage}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:PutItem
+      Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.CLICKS_TABLE}
+
+functions:
+  trackClick:
+    handler: src/handler.trackClick
+    events:
+      - http:
+          path: /click/{linkId}
+          method: get
+          request:
+            parameters:
+              paths:
+                linkId: true
+              querystrings:
+                source: false
+                campaign: false
+
+resources:
+  Resources:
+    ClickEventsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.CLICKS_TABLE}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: timestamp
+            AttributeType: N
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+          - AttributeName: timestamp
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
