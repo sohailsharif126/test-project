@@ -1,0 +1,136 @@
+import type { AWS } from '@serverless/typescript';
+
+const serverlessConfiguration: AWS = {
+  service: 'rest-api-crud',
+  frameworkVersion: '3',
+  provider: {
+    name: 'aws',
+    runtime: 'nodejs18.x',
+    region: 'us-east-1',
+    stage: '${opt:stage, "dev"}',
+    environment: {
+      ITEMS_TABLE: 'ItemsTable-${self:provider.stage}',
+    },
+    iam: {
+      role: {
+        statements: [
+          {
+            Effect: 'Allow',
+            Action: [
+              'dynamodb:PutItem',
+              'dynamodb:GetItem',
+              'dynamodb:UpdateItem',
+              'dynamodb:DeleteItem',
+              'dynamodb:Scan',
+            ],
+            Resource: 'arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.ITEMS_TABLE}',
+          },
+        ],
+      },
+    },
+  },
+  functions: {
+    createItem: {
+      handler: 'src/createItem/handler.create',
+      events: [
+        {
+          http: {
+            method: 'POST',
+            path: 'items',
+            request: {
+              schemas: {
+                'application/json': '${file(src/createItem/schema.ts):schema}',
+              },
+            },
+          },
+        },
+      ],
+    },
+    getItem: {
+      handler: 'src/getItem/handler.get',
+      events: [
+        {
+          http: {
+            method: 'GET',
+            path: 'items/{id}',
+          },
+        },
+      ],
+    },
+    listItems: {
+      handler: 'src/listItems/handler.list',
+      events: [
+        {
+          http: {
+            method: 'GET',
+            path: 'items',
+          },
+        },
+      ],
+    },
+    updateItem: {
+      handler: 'src/updateItem/handler.update',
+      events: [
+        {
+          http: {
+            method: 'PUT',
+            path: 'items/{id}',
+            request: {
+              schemas: {
+                'application/json': '${file(src/updateItem/schema.ts):schema}',
+              },
+            },
+          },
+        },
+      ],
+    },
+    deleteItem: {
+      handler: 'src/deleteItem/handler.delete',
+      events: [
+        {
+          http: {
+            method: 'DELETE',
+            path: 'items/{id}',
+          },
+        },
+      ],
+    },
+  },
+  resources: {
+    Resources: {
+      ItemsDynamoDBTable: {
+        Type: 'AWS::DynamoDB::Table',
+        Properties: {
+          TableName: '${self:provider.environment.ITEMS_TABLE}',
+          AttributeDefinitions: [
+            {
+              AttributeName: 'id',
+              AttributeType: 'S',
+            },
+          ],
+          KeySchema: [
+            {
+              AttributeName: 'id',
+              KeyType: 'HASH',
+            },
+          ],
+          BillingMode: 'PAY_PER_REQUEST',
+        },
+      },
+    },
+  },
+  plugins: ['serverless-esbuild'],
+  custom: {
+    esbuild: {
+      bundle: true,
+      minify: false,
+      sourcemap: true,
+      target: 'node18',
+      define: { 'require.resolve': undefined },
+      platform: 'node',
+      concurrency: 10,
+    },
+  },
+};
+
+module.exports = serverlessConfiguration;
