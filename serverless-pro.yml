@@ -1,0 +1,14 @@
+org: your-org-name
+app: appsync-crud-api
+
+pipelines:
+  default:
+    stages:
+      - dev
+      - prod
+
+    triggers:
+      - actions:
+          - type: git:push
+            branch: master
+            provider: github
