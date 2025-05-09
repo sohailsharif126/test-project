@@ -1,0 +1,38 @@
+# serverless.yml
+service: appsync-crud-api
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: dev
+  region: us-east-1
+
+plugins:
+  - serverless-appsync-plugin
+  - serverless-pro
+
+custom:
+  appSync:
+    name: ${self:service}-${self:provider.stage}
+    authenticationType: API_KEY
+    schema: schema.graphql
+    dataSources:
+      - type: AMAZON_DYNAMODB
+        name: ItemsDynamoDB
+        config:
+          tableName: { Ref: ItemsTable }
+
+resources:
+  Resources:
+    ItemsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: items-table-${self:provider.stage}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
