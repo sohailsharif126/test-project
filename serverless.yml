@@ -1,0 +1,61 @@
+
+service: sam-migration-service
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: dev
+  region: us-east-1
+  memorySize: 1024
+  environment:
+    ITEMS_TABLE: ${self:custom.tableName}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:PutItem
+        - dynamodb:GetItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:Scan
+      Resource: !GetAtt ItemsDynamoDBTable.Arn
+
+functions:
+  ItemsApiHandler:
+    handler: src/handler.itemsHandler
+    events:
+      - httpApi:
+          path: /items
+          method: POST
+      - httpApi:
+          path: /items/{id}
+          method: GET
+      - httpApi:
+          path: /items/{id}
+          method: PUT
+      - httpApi:
+          path: /items/{id}
+          method: DELETE
+      - httpApi:
+          path: /items
+          method: GET
+
+custom:
+  stages:
+    - dev
+    - prod
+  tableName: ItemsTable-${self:provider.stage}
+
+resources:
+  Resources:
+    ItemsDynamoDBTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.tableName}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
